@@ -1,0 +1,47 @@
+name: Review Web Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  run-and-capture:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start web server
+        run: |
+          nohup uvicorn main:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+
+      - name: Wait for server
+        run: |
+          for i in {1..20}; do
+            if curl --silent --fail http://127.0.0.1:8000/ > review.html; then
+              break
+            fi
+            sleep 1
+          done
+          test -s review.html
+
+      - name: Upload review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-server-review
+          path: |
+            review.html
+            server.log
